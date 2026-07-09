@@ -4,6 +4,7 @@ const canvas = document.querySelector(".word-field");
 const ctx = canvas.getContext("2d", { alpha: true });
 const arms = [61, 133, 205, 277, 349];
 const wordSlots = [];
+const pathCache = new Map();
 
 let context;
 let analyser;
@@ -18,6 +19,7 @@ let motion = 0;
 let deviceScale = 1;
 let viewportWidth = 0;
 let viewportHeight = 0;
+let cacheKey = "";
 
 const cubic = (a, b, c, d, t) => {
   const mt = 1 - t;
@@ -51,6 +53,70 @@ const armTangent = (angleDeg, t, width, height) => {
   return Math.atan2(after.y - before.y, after.x - before.x);
 };
 
+const getDotMaskRadius = () => {
+  const minSide = Math.min(viewportWidth, viewportHeight);
+  const dotSize = Math.max(108, Math.min(164, minSide * 0.14));
+  const ring = 13 + 8;
+  return dotSize / 2 + ring + 6;
+};
+
+const buildPath = (angle) => {
+  const samples = [];
+  const steps = 760;
+  let length = 0;
+  let previous = armPoint(angle, 0, viewportWidth, viewportHeight);
+
+  samples.push({ ...previous, t: 0, length: 0 });
+
+  for (let index = 1; index <= steps; index += 1) {
+    const t = index / steps;
+    const point = armPoint(angle, t, viewportWidth, viewportHeight);
+    length += Math.hypot(point.x - previous.x, point.y - previous.y);
+    samples.push({ ...point, t, length });
+    previous = point;
+  }
+
+  return { samples, length };
+};
+
+const resetPaths = () => {
+  pathCache.clear();
+  arms.forEach((angle) => pathCache.set(angle, buildPath(angle)));
+};
+
+const pathPointAt = (angle, distance) => {
+  const path = pathCache.get(angle);
+  if (!path || distance < 0 || distance > path.length) return null;
+
+  let low = 0;
+  let high = path.samples.length - 1;
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (path.samples[mid].length < distance) low = mid + 1;
+    else high = mid;
+  }
+
+  const next = path.samples[low];
+  const previous = path.samples[Math.max(0, low - 1)];
+  const span = Math.max(1, next.length - previous.length);
+  const mix = (distance - previous.length) / span;
+  const x = previous.x + (next.x - previous.x) * mix;
+  const y = previous.y + (next.y - previous.y) * mix;
+
+  return {
+    x,
+    y,
+    t: previous.t + (next.t - previous.t) * mix,
+  };
+};
+
+const pathTangentAt = (angle, distance) => {
+  const before = pathPointAt(angle, distance - 7);
+  const after = pathPointAt(angle, distance + 7);
+  if (!before || !after) return 0;
+  return Math.atan2(after.y - before.y, after.x - before.x);
+};
+
 const resizeCanvas = () => {
   const nextScale = Math.min(window.devicePixelRatio || 1, 2);
   const nextWidth = window.innerWidth;
@@ -66,6 +132,12 @@ const resizeCanvas = () => {
   canvas.style.width = `${viewportWidth}px`;
   canvas.style.height = `${viewportHeight}px`;
   ctx.setTransform(deviceScale, 0, 0, deviceScale, 0, 0);
+
+  const nextKey = `${viewportWidth}x${viewportHeight}`;
+  if (nextKey !== cacheKey) {
+    cacheKey = nextKey;
+    resetPaths();
+  }
 };
 
 const createSlots = () => {
@@ -85,11 +157,11 @@ const setBeat = (value) => {
   root.style.setProperty("--beat", value.toFixed(3));
 };
 
-const drawLetter = (letter, angle, t, fontSize, scale) => {
-  if (t < 0 || t > 0.995) return;
+const drawLetter = (letter, angle, distance, fontSize, scale) => {
+  const point = pathPointAt(angle, distance);
+  if (!point || point.t > 0.99) return;
 
-  const point = armPoint(angle, t, viewportWidth, viewportHeight);
-  const tangent = armTangent(angle, t, viewportWidth, viewportHeight);
+  const tangent = pathTangentAt(angle, distance);
 
   ctx.save();
   ctx.translate(point.x, point.y);
@@ -101,13 +173,14 @@ const drawLetter = (letter, angle, t, fontSize, scale) => {
 
 const drawWord = (slot) => {
   const t = (slot.phase + motion) % 1;
+  const path = pathCache.get(slot.angle);
+  if (!path) return;
+
   const baseSize = Math.min(viewportWidth, viewportHeight) * 0.066;
   const fontSize = Math.max(24, Math.min(54, baseSize));
-  const next = armPoint(slot.angle, Math.min(0.995, t + 0.008), viewportWidth, viewportHeight);
-  const point = armPoint(slot.angle, t, viewportWidth, viewportHeight);
-  const speed = Math.max(180, Math.hypot(next.x - point.x, next.y - point.y) / 0.008);
   const letters = "танцуй";
   const wordScale = 1.62 - t * 1.34;
+  const centerDistance = t * path.length;
 
   ctx.font = `950 ${fontSize}px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
   ctx.textAlign = "center";
@@ -118,16 +191,26 @@ const drawWord = (slot) => {
     letter,
     width: ctx.measureText(letter).width * wordScale,
   }));
-  const gap = fontSize * wordScale * 0.08;
+  const gap = fontSize * wordScale * 0.18;
   const totalWidth = glyphs.reduce((sum, glyph) => sum + glyph.width, 0) + gap * (glyphs.length - 1);
   let cursor = -totalWidth / 2;
 
   glyphs.forEach((glyph) => {
     const distance = cursor + glyph.width / 2;
-    const letterT = t + distance / speed;
-    drawLetter(glyph.letter, slot.angle, letterT, fontSize, wordScale);
+    drawLetter(glyph.letter, slot.angle, centerDistance + distance, fontSize, wordScale);
     cursor += glyph.width + gap;
   });
+};
+
+const cutCenterMask = () => {
+  const radius = getDotMaskRadius();
+
+  ctx.save();
+  ctx.globalCompositeOperation = "destination-out";
+  ctx.beginPath();
+  ctx.arc(viewportWidth / 2, viewportHeight / 2, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 };
 
 const flow = (now) => {
@@ -141,6 +224,7 @@ const flow = (now) => {
     .map((slot) => ({ slot, t: (slot.phase + motion) % 1 }))
     .sort((a, b) => a.t - b.t)
     .forEach(({ slot }) => drawWord(slot));
+  cutCenterMask();
 
   requestAnimationFrame(flow);
 };
