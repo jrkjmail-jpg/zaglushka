@@ -65,7 +65,10 @@ body {
   inset: -18px;
   z-index: -1;
   border-radius: 50%;
-  border: 18px solid rgba(200, 255, 72, 0.26);
+  border: 18px solid rgba(200, 255, 72, 0.46);
+  box-shadow:
+    0 0 22px rgba(200, 255, 72, 0.22),
+    inset 0 0 18px rgba(200, 255, 72, 0.14);
   animation: halo-pulse 1.85s ease-out infinite;
 }
 
@@ -82,12 +85,12 @@ body {
 
 @keyframes halo-pulse {
   0% {
-    opacity: 0.55;
+    opacity: 0.82;
     transform: scale(0.94);
   }
 
   68% {
-    opacity: 0.18;
+    opacity: 0.34;
   }
 
   100% {
