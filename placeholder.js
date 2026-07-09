@@ -70,10 +70,10 @@ const resizeCanvas = () => {
 
 const createSlots = () => {
   arms.forEach((angle) => {
-    for (let index = 0; index < 7; index += 1) {
+    for (let index = 0; index < 6; index += 1) {
       wordSlots.push({
         angle,
-        phase: index / 7,
+        phase: index / 6,
       });
     }
   });
@@ -101,13 +101,13 @@ const drawLetter = (letter, angle, t, fontSize, scale) => {
 
 const drawWord = (slot) => {
   const t = (slot.phase + motion) % 1;
-  const baseSize = Math.min(viewportWidth, viewportHeight) * 0.072;
-  const fontSize = Math.max(25, Math.min(58, baseSize));
+  const baseSize = Math.min(viewportWidth, viewportHeight) * 0.066;
+  const fontSize = Math.max(24, Math.min(54, baseSize));
   const next = armPoint(slot.angle, Math.min(0.995, t + 0.008), viewportWidth, viewportHeight);
   const point = armPoint(slot.angle, t, viewportWidth, viewportHeight);
   const speed = Math.max(180, Math.hypot(next.x - point.x, next.y - point.y) / 0.008);
   const letters = "танцуй";
-  const wordScale = 1.92 - t * 1.66;
+  const wordScale = 1.62 - t * 1.34;
 
   ctx.font = `950 ${fontSize}px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
   ctx.textAlign = "center";
@@ -118,7 +118,7 @@ const drawWord = (slot) => {
     letter,
     width: ctx.measureText(letter).width * wordScale,
   }));
-  const gap = fontSize * wordScale * 0.025;
+  const gap = fontSize * wordScale * 0.08;
   const totalWidth = glyphs.reduce((sum, glyph) => sum + glyph.width, 0) + gap * (glyphs.length - 1);
   let cursor = -totalWidth / 2;
 
