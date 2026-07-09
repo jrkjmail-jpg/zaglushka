@@ -1,6 +1,7 @@
 :root {
   color-scheme: light;
   --red: #ff3b30;
+  --lime: #c8ff48;
 }
 
 * {
@@ -61,14 +62,31 @@ body {
 .record-dot::before {
   content: "";
   position: absolute;
-  inset: -13px;
+  inset: -18px;
   z-index: -1;
   border-radius: 50%;
-  background: rgba(255, 59, 48, 0.18);
+  border: 18px solid rgba(200, 255, 72, 0.26);
+  animation: halo-pulse 1.85s ease-out infinite;
 }
 
 .record-dot::after {
   content: none;
+}
+
+@keyframes halo-pulse {
+  0% {
+    opacity: 0.55;
+    transform: scale(0.94);
+  }
+
+  68% {
+    opacity: 0.18;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.58);
+  }
 }
 
 @media (max-width: 720px) {
