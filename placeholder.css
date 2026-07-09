@@ -2,6 +2,8 @@
   color-scheme: light;
   --red: #ff3b30;
   --beat: 0;
+  --jitter-x: 0px;
+  --jitter-y: 0px;
 }
 
 * {
@@ -59,10 +61,12 @@ body {
     inset -14px 0 26px rgba(84, 0, 0, 0.18),
     inset 0 0 0 1px rgba(80, 0, 0, 0.18),
     0 0 0 calc(13px + var(--beat) * 8px) rgba(255, 59, 48, 0.18);
-  transform: translate(-50%, -50%) scale(calc(1 + var(--beat) * 0.11));
+  transform:
+    translate(calc(-50% + var(--jitter-x)), calc(-50% + var(--jitter-y)))
+    scale(calc(1 + var(--beat) * 0.11));
   transition:
     box-shadow 70ms linear,
-    transform 70ms linear;
+    transform 42ms linear;
 }
 
 .record-dot::after {

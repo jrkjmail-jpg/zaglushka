@@ -145,6 +145,13 @@ const setBeat = (value) => {
   root.style.setProperty("--beat", value.toFixed(3));
 };
 
+const setJitter = (beat) => {
+  const now = performance.now();
+  const strength = beat * 4.2;
+  root.style.setProperty("--jitter-x", `${Math.sin(now * 0.07) * strength}px`);
+  root.style.setProperty("--jitter-y", `${Math.cos(now * 0.083) * strength}px`);
+};
+
 const getScale = (t) => 7 - t * 6.84;
 const phrase = "танцуй ";
 
@@ -301,12 +308,14 @@ const animate = () => {
   for (let index = 0; index < 18; index += 1) bass += data[index];
 
   const bassEnergy = bass / (18 * 255);
-  setBeat(Math.min(1, bassEnergy * 2.2));
+  const beat = Math.min(1, bassEnergy * 2.2);
+  setBeat(beat);
+  setJitter(beat);
 
   frame = requestAnimationFrame(animate);
 };
 
-const start = async () => {
+const start = async (silent = false) => {
   if (!context) {
     const AudioEngine = window.AudioContext || window.webkitAudioContext;
     if (!AudioEngine) {
@@ -328,8 +337,18 @@ const start = async () => {
     source.connect(analyser).connect(context.destination);
   }
 
-  await context.resume();
-  await audio.play();
+  try {
+    await context.resume();
+    await audio.play();
+  } catch (error) {
+    if (silent) {
+      if (context) context.suspend();
+      return;
+    }
+
+    throw error;
+  }
+
   playing = true;
   audioToggle.setAttribute("aria-pressed", "true");
   audioToggle.setAttribute("aria-label", "Выключить звук");
@@ -340,6 +359,7 @@ const stop = () => {
   playing = false;
   cancelAnimationFrame(frame);
   setBeat(0);
+  setJitter(0);
   if (audio) audio.pause();
   if (context) context.suspend();
   audioToggle.setAttribute("aria-pressed", "false");
@@ -356,3 +376,6 @@ audioToggle.addEventListener("click", () => {
 });
 
 requestAnimationFrame(flow);
+window.addEventListener("load", () => {
+  start(true);
+});
