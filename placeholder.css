@@ -54,31 +54,30 @@ body {
   aspect-ratio: 1;
   border-radius: 50%;
   background: var(--red);
-  box-shadow:
-    inset 0 14px 18px rgba(255, 255, 255, 0.2),
-    inset 0 -18px 30px rgba(95, 0, 0, 0.24),
-    inset 14px 0 26px rgba(255, 255, 255, 0.08),
-    inset -14px 0 26px rgba(84, 0, 0, 0.18),
-    inset 0 0 0 1px rgba(80, 0, 0, 0.18),
-    0 0 0 calc(13px + var(--beat) * 8px) rgba(255, 59, 48, 0.18);
-  transform:
-    translate(calc(-50% + var(--jitter-x)), calc(-50% + var(--jitter-y)))
-    scale(calc(1 + var(--beat) * 0.11));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+  transform: translate(-50%, -50%);
   transition:
     box-shadow 70ms linear,
+    transform 70ms linear;
+}
+
+.record-dot::before {
+  content: "";
+  position: absolute;
+  inset: calc(-13px - var(--beat) * 8px);
+  z-index: -1;
+  border-radius: 50%;
+  background: rgba(255, 59, 48, 0.18);
+  transform:
+    translate(var(--jitter-x), var(--jitter-y))
+    scale(calc(1 + var(--beat) * 0.14));
+  transition:
+    inset 42ms linear,
     transform 42ms linear;
 }
 
 .record-dot::after {
-  content: "";
-  position: absolute;
-  inset: 8%;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 50% 68%, rgba(76, 0, 0, 0.22), rgba(76, 0, 0, 0) 58%),
-    radial-gradient(circle at 50% 24%, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0) 48%);
-  filter: blur(7px);
-  pointer-events: none;
+  content: none;
 }
 
 .audio-toggle {
