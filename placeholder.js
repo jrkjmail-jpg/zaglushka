@@ -5,6 +5,7 @@ const ctx = canvas.getContext("2d", { alpha: true });
 const arms = [61, 133, 205, 277, 349];
 const streamOffsets = [0, 0.18, 0.36, 0.54, 0.72];
 const pathCache = new Map();
+const streamState = new Map();
 
 let context;
 let analyser;
@@ -82,6 +83,7 @@ const buildPath = (angle) => {
 const resetPaths = () => {
   pathCache.clear();
   arms.forEach((angle) => pathCache.set(angle, buildPath(angle)));
+  streamState.clear();
 };
 
 const pathPointAt = (angle, distance) => {
@@ -145,6 +147,19 @@ const setBeat = (value) => {
 };
 
 const getScale = (t) => 1.62 - t * 1.34;
+const phrase = "танцуй ";
+
+const getFontSize = () => {
+  const baseSize = Math.min(viewportWidth, viewportHeight) * 0.066;
+  return Math.max(24, Math.min(54, baseSize));
+};
+
+const getAdvance = (letter, angle, distance, fontSize) => {
+  const point = pathPointAt(angle, Math.max(0, distance));
+  const scale = getScale(point ? point.t : 0);
+  const width = letter === " " ? fontSize * 0.08 : ctx.measureText(letter).width * 0.9;
+  return width * scale;
+};
 
 const drawLetter = (letter, angle, distance, fontSize) => {
   const point = pathPointAt(angle, distance);
@@ -161,44 +176,76 @@ const drawLetter = (letter, angle, distance, fontSize) => {
   ctx.restore();
 };
 
-const drawStream = (angle, offset) => {
+const createStream = (angle, offset, fontSize) => {
+  const path = pathCache.get(angle);
+  if (!path) return [];
+
+  const glyphs = [];
+  let index = 0;
+  let cursor = -fontSize * 5 - offset * fontSize * 20;
+  const endDistance = path.length + fontSize * 4;
+
+  while (cursor < endDistance) {
+    const letter = phrase[index % phrase.length];
+    const advance = getAdvance(letter, angle, cursor, fontSize);
+
+    glyphs.push({
+      letter,
+      index: index % phrase.length,
+      distance: cursor + advance / 2,
+    });
+
+    cursor += advance;
+    index += 1;
+  }
+
+  return glyphs;
+};
+
+const prependGlyphs = (angle, glyphs, fontSize) => {
+  while (!glyphs.length || glyphs[0].distance > -fontSize * 3) {
+    const first = glyphs[0];
+    const nextIndex = first ? first.index : 0;
+    const index = (nextIndex - 1 + phrase.length) % phrase.length;
+    const letter = phrase[index];
+    const nextAdvance = first ? getAdvance(first.letter, angle, first.distance, fontSize) : 0;
+    const advance = getAdvance(letter, angle, first ? first.distance : 0, fontSize);
+    const distance = first ? first.distance - nextAdvance / 2 - advance / 2 : -advance / 2;
+
+    glyphs.unshift({ letter, index, distance });
+  }
+};
+
+const drawStream = (angle, offset, delta) => {
   const path = pathCache.get(angle);
   if (!path) return;
 
-  const baseSize = Math.min(viewportWidth, viewportHeight) * 0.066;
-  const fontSize = Math.max(24, Math.min(54, baseSize));
-  const phrase = "танцуй ";
+  const fontSize = getFontSize();
 
   ctx.font = `950 ${fontSize}px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = "#0d0d0d";
 
-  const maxScale = getScale(0);
-  const glyphs = phrase.split("").map((letter) => {
-    const isSpace = letter === " ";
-    const width = isSpace ? fontSize * 0.22 : ctx.measureText(letter).width;
-    return {
-      letter,
-      width: (width + fontSize * 0.012) * maxScale,
-    };
+  if (!streamState.has(angle)) streamState.set(angle, createStream(angle, offset, fontSize));
+
+  const glyphs = streamState.get(angle);
+  const speed = 58;
+  const endDistance = path.length + fontSize * 3;
+
+  glyphs.forEach((glyph) => {
+    glyph.distance += delta * speed;
   });
-  const period = glyphs.reduce((sum, glyph) => sum + glyph.width, 0);
-  const travel = (motion + offset * period) % period;
-  const startRepeat = Math.floor((-travel - period) / period);
-  const endDistance = path.length + fontSize * maxScale * 2;
 
-  let repeat = startRepeat;
-  while (repeat * period + travel < endDistance) {
-    let cursor = repeat * period + travel;
+  while (glyphs.length && glyphs[glyphs.length - 1].distance > endDistance) {
+    glyphs.pop();
+  }
 
-    glyphs.forEach((glyph) => {
-      const centerDistance = cursor + glyph.width / 2;
-      if (glyph.letter !== " ") drawLetter(glyph.letter, angle, centerDistance, fontSize);
-      cursor += glyph.width;
-    });
+  prependGlyphs(angle, glyphs, fontSize);
 
-    repeat += 1;
+  for (let index = glyphs.length - 1; index >= 0; index -= 1) {
+    const glyph = glyphs[index];
+    if (glyph.letter !== " ") drawLetter(glyph.letter, angle, glyph.distance, fontSize);
   }
 };
 
@@ -216,11 +263,10 @@ const cutCenterMask = () => {
 const flow = (now) => {
   const delta = Math.min(48, now - lastMotion) / 1000;
   lastMotion = now;
-  motion = (motion + delta * 64) % 100000;
 
   resizeCanvas();
   ctx.clearRect(0, 0, viewportWidth, viewportHeight);
-  arms.forEach((angle, index) => drawStream(angle, streamOffsets[index]));
+  arms.forEach((angle, index) => drawStream(angle, streamOffsets[index], delta));
   cutCenterMask();
 
   requestAnimationFrame(flow);
