@@ -77,7 +77,7 @@ body {
   position: absolute;
   inset: -5px;
   z-index: 0;
-  border: 2px solid rgba(255, 59, 48, 0.58);
+  border: 2px solid var(--red);
   border-radius: 50%;
   animation: red-ring-pulse 1.85s ease-out infinite;
   pointer-events: none;
