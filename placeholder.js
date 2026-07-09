@@ -146,7 +146,7 @@ const setBeat = (value) => {
   root.style.setProperty("--beat", value.toFixed(3));
 };
 
-const getScale = (t) => 4 - t * 3.84;
+const getScale = (t) => 0.16 + 3.84 * (1 - t) ** 1.9;
 const phrase = "танцуй ";
 
 const getFontSize = () => {
