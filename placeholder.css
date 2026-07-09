@@ -85,21 +85,23 @@ body {
 
 .record-dot-label {
   position: absolute;
-  inset: 0;
+  inset: 8%;
   z-index: 1;
   display: grid;
   place-items: center;
-  color: rgba(122, 7, 4, 0.58);
-  font-size: clamp(1.08rem, 2.35vmin, 1.72rem);
-  font-weight: 950;
-  letter-spacing: 0;
+  color: rgba(103, 8, 5, 0.52);
+  font-size: clamp(1.18rem, 2.62vmin, 1.92rem);
+  font-weight: 850;
+  letter-spacing: 0.035em;
   line-height: 1;
   text-transform: lowercase;
+  mix-blend-mode: multiply;
   text-shadow:
-    0 1px 1px rgba(255, 255, 255, 0.26),
-    0 -1px 1px rgba(88, 0, 0, 0.48),
-    0 2px 4px rgba(88, 0, 0, 0.2);
-  transform: translateY(1px);
+    0 1px 0 rgba(255, 255, 255, 0.2),
+    0 -1px 0 rgba(72, 0, 0, 0.42),
+    1px 2px 3px rgba(72, 0, 0, 0.16),
+    -1px -1px 2px rgba(255, 111, 103, 0.16);
+  transform: translateY(0.04em);
   pointer-events: none;
 }
 
