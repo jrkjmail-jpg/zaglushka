@@ -85,8 +85,13 @@ body {
 
 @keyframes halo-pulse {
   0% {
+    opacity: 0;
+    transform: scale(0.68);
+  }
+
+  24% {
     opacity: 0.82;
-    transform: scale(0.94);
+    transform: scale(1);
   }
 
   68% {
@@ -101,8 +106,13 @@ body {
 
 @keyframes red-ring-pulse {
   0% {
+    opacity: 0;
+    transform: scale(0.86);
+  }
+
+  22% {
     opacity: 0.72;
-    transform: scale(0.98);
+    transform: scale(1);
   }
 
   70% {
