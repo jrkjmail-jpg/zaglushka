@@ -1,5 +1,3 @@
-const root = document.documentElement;
-const audioToggle = document.querySelector(".audio-toggle");
 const canvas = document.querySelector(".word-field");
 const ctx = canvas.getContext("2d", { alpha: true });
 const arms = [61, 133, 205, 277, 349];
@@ -7,13 +5,6 @@ const streamOffsets = [0, 0.18, 0.36, 0.54, 0.72];
 const pathCache = new Map();
 const streamState = new Map();
 
-let context;
-let analyser;
-let data;
-let audio;
-let source;
-let frame;
-let playing = false;
 let lastMotion = performance.now();
 let motion = 0;
 let deviceScale = 1;
@@ -139,17 +130,6 @@ const resizeCanvas = () => {
     cacheKey = nextKey;
     resetPaths();
   }
-};
-
-const setBeat = (value) => {
-  root.style.setProperty("--beat", value.toFixed(3));
-};
-
-const setJitter = (beat) => {
-  const now = performance.now();
-  const strength = beat * 4.2;
-  root.style.setProperty("--jitter-x", `${Math.sin(now * 0.07) * strength}px`);
-  root.style.setProperty("--jitter-y", `${Math.cos(now * 0.083) * strength}px`);
 };
 
 const getScale = (t) => 7 - t * 6.84;
@@ -301,81 +281,4 @@ const flow = (now) => {
   requestAnimationFrame(flow);
 };
 
-const animate = () => {
-  analyser.getByteFrequencyData(data);
-
-  let bass = 0;
-  for (let index = 0; index < 18; index += 1) bass += data[index];
-
-  const bassEnergy = bass / (18 * 255);
-  const beat = Math.min(1, bassEnergy * 2.2);
-  setBeat(beat);
-  setJitter(beat);
-
-  frame = requestAnimationFrame(animate);
-};
-
-const start = async (silent = false) => {
-  if (!context) {
-    const AudioEngine = window.AudioContext || window.webkitAudioContext;
-    if (!AudioEngine) {
-      audioToggle.hidden = true;
-      return;
-    }
-
-    context = new AudioEngine();
-    analyser = context.createAnalyser();
-    analyser.fftSize = 256;
-    analyser.smoothingTimeConstant = 0.78;
-    data = new Uint8Array(analyser.frequencyBinCount);
-
-    audio = new Audio("assets/music.mp3");
-    audio.loop = true;
-    audio.preload = "auto";
-
-    source = context.createMediaElementSource(audio);
-    source.connect(analyser).connect(context.destination);
-  }
-
-  try {
-    await context.resume();
-    await audio.play();
-  } catch (error) {
-    if (silent) {
-      if (context) context.suspend();
-      return;
-    }
-
-    throw error;
-  }
-
-  playing = true;
-  audioToggle.setAttribute("aria-pressed", "true");
-  audioToggle.setAttribute("aria-label", "Выключить звук");
-  animate();
-};
-
-const stop = () => {
-  playing = false;
-  cancelAnimationFrame(frame);
-  setBeat(0);
-  setJitter(0);
-  if (audio) audio.pause();
-  if (context) context.suspend();
-  audioToggle.setAttribute("aria-pressed", "false");
-  audioToggle.setAttribute("aria-label", "Включить звук");
-};
-
-audioToggle.addEventListener("click", () => {
-  if (playing) {
-    stop();
-    return;
-  }
-
-  start();
-});
-
 requestAnimationFrame(flow);
-window.addEventListener("load", () => {
-  start(true);
-});

@@ -1,9 +1,6 @@
 :root {
   color-scheme: light;
   --red: #ff3b30;
-  --beat: 0;
-  --jitter-x: 0px;
-  --jitter-y: 0px;
 }
 
 * {
@@ -64,38 +61,14 @@ body {
 .record-dot::before {
   content: "";
   position: absolute;
-  inset: calc(-13px - var(--beat) * 8px);
+  inset: -13px;
   z-index: -1;
   border-radius: 50%;
   background: rgba(255, 59, 48, 0.18);
-  transform:
-    translate(var(--jitter-x), var(--jitter-y))
-    scale(calc(1 + var(--beat) * 0.14));
-  transition:
-    inset 42ms linear,
-    transform 42ms linear;
 }
 
 .record-dot::after {
   content: none;
-}
-
-.audio-toggle {
-  position: fixed;
-  right: max(18px, env(safe-area-inset-right));
-  bottom: max(18px, env(safe-area-inset-bottom));
-  z-index: 5;
-  width: 34px;
-  height: 34px;
-  padding: 0;
-  border: 1px solid rgba(255, 59, 48, 0.28);
-  border-radius: 50%;
-  background: rgba(255, 59, 48, 0.08);
-  cursor: pointer;
-}
-
-.audio-toggle[aria-pressed="true"] {
-  background: var(--red);
 }
 
 @media (max-width: 720px) {
