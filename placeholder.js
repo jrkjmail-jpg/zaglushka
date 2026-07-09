@@ -3,7 +3,7 @@ const audioToggle = document.querySelector(".audio-toggle");
 const canvas = document.querySelector(".word-field");
 const ctx = canvas.getContext("2d", { alpha: true });
 const arms = [61, 133, 205, 277, 349];
-const wordSlots = [];
+const streamOffsets = [0, 0.18, 0.36, 0.54, 0.72];
 const pathCache = new Map();
 
 let context;
@@ -140,28 +140,18 @@ const resizeCanvas = () => {
   }
 };
 
-const createSlots = () => {
-  arms.forEach((angle) => {
-    for (let index = 0; index < 6; index += 1) {
-      wordSlots.push({
-        angle,
-        phase: index / 6,
-      });
-    }
-  });
-};
-
-createSlots();
-
 const setBeat = (value) => {
   root.style.setProperty("--beat", value.toFixed(3));
 };
 
-const drawLetter = (letter, angle, distance, fontSize, scale) => {
+const getScale = (t) => 1.62 - t * 1.34;
+
+const drawLetter = (letter, angle, distance, fontSize) => {
   const point = pathPointAt(angle, distance);
   if (!point || point.t > 0.99) return;
 
   const tangent = pathTangentAt(angle, distance);
+  const scale = getScale(point.t);
 
   ctx.save();
   ctx.translate(point.x, point.y);
@@ -171,35 +161,42 @@ const drawLetter = (letter, angle, distance, fontSize, scale) => {
   ctx.restore();
 };
 
-const drawWord = (slot) => {
-  const t = (slot.phase + motion) % 1;
-  const path = pathCache.get(slot.angle);
+const drawStream = (angle, offset) => {
+  const path = pathCache.get(angle);
   if (!path) return;
 
   const baseSize = Math.min(viewportWidth, viewportHeight) * 0.066;
   const fontSize = Math.max(24, Math.min(54, baseSize));
-  const letters = "танцуй";
-  const wordScale = 1.62 - t * 1.34;
-  const centerDistance = t * path.length;
+  const phrase = "танцуй танцуй ";
+  const baseAdvance = fontSize * 1.08;
+  const streamShift = motion + offset * phrase.length * baseAdvance;
+  const startOffset = streamShift % baseAdvance;
 
   ctx.font = `950 ${fontSize}px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = "#0d0d0d";
 
-  const glyphs = letters.split("").map((letter) => ({
-    letter,
-    width: ctx.measureText(letter).width * wordScale,
-  }));
-  const gap = fontSize * wordScale * 0.18;
-  const totalWidth = glyphs.reduce((sum, glyph) => sum + glyph.width, 0) + gap * (glyphs.length - 1);
-  let cursor = -totalWidth / 2;
+  let distance = -startOffset;
+  let index = Math.floor(streamShift / baseAdvance) % phrase.length;
+  const endDistance = path.length + fontSize * 3;
 
-  glyphs.forEach((glyph) => {
-    const distance = cursor + glyph.width / 2;
-    drawLetter(glyph.letter, slot.angle, centerDistance + distance, fontSize, wordScale);
-    cursor += glyph.width + gap;
-  });
+  while (distance < endDistance) {
+    const point = pathPointAt(angle, Math.max(0, distance));
+    const t = point ? point.t : 0;
+    const scale = getScale(t);
+    const letter = phrase[index % phrase.length];
+    const isSpace = letter === " ";
+    const measuredWidth = isSpace ? fontSize * 0.34 : ctx.measureText(letter).width;
+    const tracking = fontSize * 0.015;
+    const advance = (measuredWidth + tracking) * scale;
+    const centerDistance = distance + advance / 2;
+
+    if (!isSpace) drawLetter(letter, angle, centerDistance, fontSize);
+
+    distance += advance;
+    index += 1;
+  }
 };
 
 const cutCenterMask = () => {
@@ -216,14 +213,11 @@ const cutCenterMask = () => {
 const flow = (now) => {
   const delta = Math.min(48, now - lastMotion) / 1000;
   lastMotion = now;
-  motion = (motion + delta * 0.052) % 1;
+  motion = (motion + delta * 64) % 100000;
 
   resizeCanvas();
   ctx.clearRect(0, 0, viewportWidth, viewportHeight);
-  wordSlots
-    .map((slot) => ({ slot, t: (slot.phase + motion) % 1 }))
-    .sort((a, b) => a.t - b.t)
-    .forEach(({ slot }) => drawWord(slot));
+  arms.forEach((angle, index) => drawStream(angle, streamOffsets[index]));
   cutCenterMask();
 
   requestAnimationFrame(flow);
