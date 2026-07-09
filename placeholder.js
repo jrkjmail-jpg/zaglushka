@@ -10,11 +10,10 @@ const streamState = new Map();
 let context;
 let analyser;
 let data;
-let gainNode;
-let timer;
+let audio;
+let source;
 let frame;
 let playing = false;
-let lastPulse = 0;
 let lastMotion = performance.now();
 let motion = 0;
 let deviceScale = 1;
@@ -295,59 +294,14 @@ const flow = (now) => {
   requestAnimationFrame(flow);
 };
 
-const playKick = (time) => {
-  const osc = context.createOscillator();
-  const gain = context.createGain();
-
-  osc.type = "sine";
-  osc.frequency.setValueAtTime(126, time);
-  osc.frequency.exponentialRampToValueAtTime(46, time + 0.16);
-  gain.gain.setValueAtTime(0.001, time);
-  gain.gain.exponentialRampToValueAtTime(0.82, time + 0.01);
-  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
-
-  osc.connect(gain).connect(gainNode);
-  osc.start(time);
-  osc.stop(time + 0.22);
-  lastPulse = performance.now();
-};
-
-const playTick = (time) => {
-  const osc = context.createOscillator();
-  const gain = context.createGain();
-
-  osc.type = "triangle";
-  osc.frequency.setValueAtTime(196, time);
-  gain.gain.setValueAtTime(0.001, time);
-  gain.gain.exponentialRampToValueAtTime(0.14, time + 0.01);
-  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.13);
-
-  osc.connect(gain).connect(gainNode);
-  osc.start(time);
-  osc.stop(time + 0.15);
-};
-
-const schedule = () => {
-  let stepIndex = 0;
-  const step = 60 / 122 / 2;
-
-  timer = window.setInterval(() => {
-    const time = context.currentTime + 0.025;
-    if (stepIndex % 4 === 0) playKick(time);
-    if (stepIndex % 4 === 2) playTick(time);
-    stepIndex += 1;
-  }, step * 1000);
-};
-
 const animate = () => {
   analyser.getByteFrequencyData(data);
 
   let bass = 0;
-  for (let index = 0; index < 12; index += 1) bass += data[index];
+  for (let index = 0; index < 18; index += 1) bass += data[index];
 
-  const bassEnergy = bass / (12 * 255);
-  const pulse = Math.max(0, 1 - (performance.now() - lastPulse) / 240);
-  setBeat(Math.min(1, bassEnergy * 1.5 + pulse * 0.5));
+  const bassEnergy = bass / (18 * 255);
+  setBeat(Math.min(1, bassEnergy * 2.2));
 
   frame = requestAnimationFrame(animate);
 };
@@ -362,26 +316,31 @@ const start = async () => {
 
     context = new AudioEngine();
     analyser = context.createAnalyser();
-    analyser.fftSize = 128;
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.78;
     data = new Uint8Array(analyser.frequencyBinCount);
-    gainNode = context.createGain();
-    gainNode.gain.value = 0.38;
-    gainNode.connect(analyser).connect(context.destination);
+
+    audio = new Audio("assets/music.mp3");
+    audio.loop = true;
+    audio.preload = "auto";
+
+    source = context.createMediaElementSource(audio);
+    source.connect(analyser).connect(context.destination);
   }
 
   await context.resume();
+  await audio.play();
   playing = true;
   audioToggle.setAttribute("aria-pressed", "true");
   audioToggle.setAttribute("aria-label", "Выключить звук");
-  schedule();
   animate();
 };
 
 const stop = () => {
   playing = false;
-  window.clearInterval(timer);
   cancelAnimationFrame(frame);
   setBeat(0);
+  if (audio) audio.pause();
   if (context) context.suspend();
   audioToggle.setAttribute("aria-pressed", "false");
   audioToggle.setAttribute("aria-label", "Включить звук");
