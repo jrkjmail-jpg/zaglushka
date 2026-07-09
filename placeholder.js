@@ -154,12 +154,25 @@ const getFontSize = () => {
   return Math.max(24, Math.min(54, baseSize));
 };
 
-const getAdvance = (letter, angle, distance, fontSize) => {
+const getGlyphWidth = (letter, angle, distance, fontSize) => {
   const point = pathPointAt(angle, Math.max(0, distance));
   const scale = getScale(point ? point.t : 0);
-  const width = letter === " " ? fontSize * 0.055 : ctx.measureText(letter).width * 0.8;
+
+  if (letter === " ") return fontSize * 0.1 * scale;
+
+  const metrics = ctx.measureText(letter);
+  const inkWidth = metrics.actualBoundingBoxLeft + metrics.actualBoundingBoxRight;
+  const width = Math.max(inkWidth || 0, metrics.width * 0.72);
   return width * scale;
 };
+
+const getLetterGap = (fontSize) => Math.max(1.2, fontSize * 0.018);
+
+const getPairDistance = (previousLetter, currentLetter, angle, previousDistance, currentDistance, fontSize) => (
+  getGlyphWidth(previousLetter, angle, previousDistance, fontSize) / 2
+  + getGlyphWidth(currentLetter, angle, currentDistance, fontSize) / 2
+  + getLetterGap(fontSize)
+);
 
 const drawLetter = (letter, angle, distance, fontSize) => {
   const point = pathPointAt(angle, distance);
@@ -182,20 +195,20 @@ const createStream = (angle, offset, fontSize) => {
 
   const glyphs = [];
   let index = 0;
-  let cursor = -fontSize * 5 - offset * fontSize * 20;
+  let distance = -fontSize * 5 - offset * fontSize * 20;
   const endDistance = path.length + fontSize * 4;
 
-  while (cursor < endDistance) {
+  while (distance < endDistance) {
     const letter = phrase[index % phrase.length];
-    const advance = getAdvance(letter, angle, cursor, fontSize);
 
     glyphs.push({
       letter,
       index: index % phrase.length,
-      distance: cursor + advance / 2,
+      distance,
     });
 
-    cursor += advance;
+    const nextLetter = phrase[(index + 1) % phrase.length];
+    distance += getPairDistance(letter, nextLetter, angle, distance, distance + fontSize, fontSize);
     index += 1;
   }
 
@@ -208,25 +221,20 @@ const prependGlyphs = (angle, glyphs, fontSize) => {
     const nextIndex = first ? first.index : 0;
     const index = (nextIndex - 1 + phrase.length) % phrase.length;
     const letter = phrase[index];
-    const nextAdvance = first ? getAdvance(first.letter, angle, first.distance, fontSize) : 0;
-    const advance = getAdvance(letter, angle, first ? first.distance : 0, fontSize);
-    const distance = first ? first.distance - nextAdvance / 2 - advance / 2 : -advance / 2;
+    const distance = first
+      ? first.distance - getPairDistance(letter, first.letter, angle, first.distance - fontSize, first.distance, fontSize)
+      : -fontSize;
 
     glyphs.unshift({ letter, index, distance });
   }
 };
 
-const compactGlyphs = (angle, glyphs, fontSize) => {
+const alignGlyphs = (angle, glyphs, fontSize) => {
   for (let index = 1; index < glyphs.length; index += 1) {
     const previous = glyphs[index - 1];
     const current = glyphs[index];
-    const previousAdvance = getAdvance(previous.letter, angle, previous.distance, fontSize);
-    const currentAdvance = getAdvance(current.letter, angle, current.distance, fontSize);
-    const targetDistance = previous.distance + previousAdvance / 2 + currentAdvance / 2;
-
-    if (current.distance > targetDistance) {
-      current.distance += (targetDistance - current.distance) * 0.38;
-    }
+    current.distance = previous.distance
+      + getPairDistance(previous.letter, current.letter, angle, previous.distance, current.distance, fontSize);
   }
 };
 
@@ -256,7 +264,7 @@ const drawStream = (angle, offset, delta) => {
   }
 
   prependGlyphs(angle, glyphs, fontSize);
-  compactGlyphs(angle, glyphs, fontSize);
+  alignGlyphs(angle, glyphs, fontSize);
 
   for (let index = glyphs.length - 1; index >= 0; index -= 1) {
     const glyph = glyphs[index];
