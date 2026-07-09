@@ -157,7 +157,7 @@ const getFontSize = () => {
 const getAdvance = (letter, angle, distance, fontSize) => {
   const point = pathPointAt(angle, Math.max(0, distance));
   const scale = getScale(point ? point.t : 0);
-  const width = letter === " " ? fontSize * 0.08 : ctx.measureText(letter).width * 0.9;
+  const width = letter === " " ? fontSize * 0.055 : ctx.measureText(letter).width * 0.8;
   return width * scale;
 };
 
@@ -216,6 +216,20 @@ const prependGlyphs = (angle, glyphs, fontSize) => {
   }
 };
 
+const compactGlyphs = (angle, glyphs, fontSize) => {
+  for (let index = 1; index < glyphs.length; index += 1) {
+    const previous = glyphs[index - 1];
+    const current = glyphs[index];
+    const previousAdvance = getAdvance(previous.letter, angle, previous.distance, fontSize);
+    const currentAdvance = getAdvance(current.letter, angle, current.distance, fontSize);
+    const targetDistance = previous.distance + previousAdvance / 2 + currentAdvance / 2;
+
+    if (current.distance > targetDistance) {
+      current.distance += (targetDistance - current.distance) * 0.38;
+    }
+  }
+};
+
 const drawStream = (angle, offset, delta) => {
   const path = pathCache.get(angle);
   if (!path) return;
@@ -242,6 +256,7 @@ const drawStream = (angle, offset, delta) => {
   }
 
   prependGlyphs(angle, glyphs, fontSize);
+  compactGlyphs(angle, glyphs, fontSize);
 
   for (let index = glyphs.length - 1; index >= 0; index -= 1) {
     const glyph = glyphs[index];
