@@ -70,7 +70,14 @@ body {
 }
 
 .record-dot::after {
-  content: none;
+  content: "";
+  position: absolute;
+  inset: -5px;
+  z-index: 0;
+  border: 2px solid rgba(255, 59, 48, 0.58);
+  border-radius: 50%;
+  animation: red-ring-pulse 1.85s ease-out infinite;
+  pointer-events: none;
 }
 
 @keyframes halo-pulse {
@@ -86,6 +93,22 @@ body {
   100% {
     opacity: 0;
     transform: scale(1.58);
+  }
+}
+
+@keyframes red-ring-pulse {
+  0% {
+    opacity: 0.72;
+    transform: scale(0.98);
+  }
+
+  70% {
+    opacity: 0.42;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.18);
   }
 }
 
