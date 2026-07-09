@@ -167,35 +167,38 @@ const drawStream = (angle, offset) => {
 
   const baseSize = Math.min(viewportWidth, viewportHeight) * 0.066;
   const fontSize = Math.max(24, Math.min(54, baseSize));
-  const phrase = "танцуй танцуй ";
-  const baseAdvance = fontSize * 1.08;
-  const streamShift = motion + offset * phrase.length * baseAdvance;
-  const startOffset = streamShift % baseAdvance;
+  const phrase = "танцуй ";
 
   ctx.font = `950 ${fontSize}px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = "#0d0d0d";
 
-  let distance = -startOffset;
-  let index = Math.floor(streamShift / baseAdvance) % phrase.length;
-  const endDistance = path.length + fontSize * 3;
-
-  while (distance < endDistance) {
-    const point = pathPointAt(angle, Math.max(0, distance));
-    const t = point ? point.t : 0;
-    const scale = getScale(t);
-    const letter = phrase[index % phrase.length];
+  const maxScale = getScale(0);
+  const glyphs = phrase.split("").map((letter) => {
     const isSpace = letter === " ";
-    const measuredWidth = isSpace ? fontSize * 0.34 : ctx.measureText(letter).width;
-    const tracking = fontSize * 0.015;
-    const advance = (measuredWidth + tracking) * scale;
-    const centerDistance = distance + advance / 2;
+    const width = isSpace ? fontSize * 0.22 : ctx.measureText(letter).width;
+    return {
+      letter,
+      width: (width + fontSize * 0.012) * maxScale,
+    };
+  });
+  const period = glyphs.reduce((sum, glyph) => sum + glyph.width, 0);
+  const travel = (motion + offset * period) % period;
+  const startRepeat = Math.floor((-travel - period) / period);
+  const endDistance = path.length + fontSize * maxScale * 2;
 
-    if (!isSpace) drawLetter(letter, angle, centerDistance, fontSize);
+  let repeat = startRepeat;
+  while (repeat * period + travel < endDistance) {
+    let cursor = repeat * period + travel;
 
-    distance += advance;
-    index += 1;
+    glyphs.forEach((glyph) => {
+      const centerDistance = cursor + glyph.width / 2;
+      if (glyph.letter !== " ") drawLetter(glyph.letter, angle, centerDistance, fontSize);
+      cursor += glyph.width;
+    });
+
+    repeat += 1;
   }
 };
 
